@@ -1,4 +1,3 @@
-cat > /home/claude/oxagon/templates/index.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -8,559 +7,272 @@ cat > /home/claude/oxagon/templates/index.html << 'HTMLEOF'
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:       #020c18;
-    --panel:    rgba(4, 20, 40, 0.92);
-    --border:   rgba(0, 180, 255, 0.18);
-    --accent:   #00c8ff;
-    --accent2:  #00ff88;
-    --accent3:  #ff6b35;
-    --gold:     #ffd700;
-    --text:     #c8e8ff;
-    --dim:      #4a7090;
-    --warn:     #ff4444;
-    --mono:     'Share Tech Mono', monospace;
-    --arabic:   'Tajawal', sans-serif;
-  }
+:root {
+  --bg:     #020c18;
+  --panel:  rgba(4,20,40,0.92);
+  --border: rgba(0,180,255,0.18);
+  --accent: #00c8ff;
+  --a2:     #00ff88;
+  --a3:     #ff6b35;
+  --gold:   #ffd700;
+  --text:   #c8e8ff;
+  --dim:    #4a7090;
+  --warn:   #ff4444;
+  --mono:   'Share Tech Mono', monospace;
+  --ar:     'Tajawal', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--ar); overflow:hidden; height:100vh; width:100vw; }
+#cv  { position:absolute; inset:0; z-index:0; }
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+/* scanline */
+body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,.015) 2px,rgba(0,200,255,.015) 4px); pointer-events:none; z-index:100; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--arabic);
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-  }
+/* ── Header ── */
+#hdr { position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:54px; background:linear-gradient(180deg,rgba(2,12,24,.97) 0%,transparent 100%); border-bottom:1px solid var(--border); }
+.brand { display:flex; align-items:center; gap:10px; }
+.oct-ico { width:30px; height:30px; background:var(--accent); clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); animation:pulse-o 2s ease-in-out infinite; }
+@keyframes pulse-o { 0%,100%{filter:drop-shadow(0 0 6px var(--accent))} 50%{filter:drop-shadow(0 0 16px var(--accent))} }
+.brand-t { font-size:19px; font-weight:900; letter-spacing:3px; color:var(--accent); }
+.brand-s { font-size:10px; color:var(--dim); letter-spacing:2px; font-family:var(--mono); }
+.hdr-stats { display:flex; gap:20px; font-family:var(--mono); font-size:11px; }
+.st { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.sv { color:var(--a2); font-size:13px; font-weight:700; }
+.sl { color:var(--dim); font-size:9px; letter-spacing:1px; }
 
-  /* ── Canvas ── */
-  #canvas-container {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-  }
-  #canvas-container canvas { display:block; }
+/* ── Panel card ── */
+.card { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:14px; backdrop-filter:blur(12px); }
+.ptitle { font-size:10px; letter-spacing:2px; color:var(--accent); font-family:var(--mono); margin-bottom:11px; display:flex; align-items:center; gap:7px; }
+.ptitle::before { content:''; width:4px; height:4px; background:var(--accent); border-radius:50%; animation:blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-  /* ── Scanline overlay ── */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,200,255,0.015) 2px,
-      rgba(0,200,255,0.015) 4px
-    );
-    pointer-events: none;
-    z-index: 100;
-  }
+/* ── Command panel (right) ── */
+#pnl-r { position:fixed; top:68px; right:14px; width:310px; z-index:50; display:flex; flex-direction:column; gap:10px; }
+.cmd-ta { width:100%; background:rgba(0,200,255,.04); border:1px solid var(--border); border-radius:6px; padding:9px 11px; color:var(--text); font-family:var(--ar); font-size:13px; resize:none; min-height:68px; outline:none; direction:rtl; line-height:1.6; transition:border-color .2s; }
+.cmd-ta:focus { border-color:var(--accent); }
+.cmd-ta::placeholder { color:var(--dim); font-size:12px; }
+.presets { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.pb { background:rgba(0,200,255,.07); border:1px solid rgba(0,200,255,.2); border-radius:4px; color:var(--dim); font-family:var(--ar); font-size:11px; padding:4px 8px; cursor:pointer; transition:all .15s; direction:rtl; }
+.pb:hover { background:rgba(0,200,255,.15); color:var(--accent); border-color:var(--accent); }
+.exec-btn { width:100%; background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(0,255,136,.08)); border:1px solid var(--accent); border-radius:6px; color:var(--accent); font-family:var(--ar); font-size:13px; font-weight:700; padding:9px; cursor:pointer; letter-spacing:2px; transition:all .2s; overflow:hidden; }
+.exec-btn:hover { background:rgba(0,200,255,.22); box-shadow:0 0 20px rgba(0,200,255,.28); }
+.exec-btn:disabled { opacity:.4; cursor:not-allowed; }
+.inst-card { background:rgba(0,200,255,.05); border:1px solid rgba(0,200,255,.14); border-radius:5px; padding:7px 9px; margin-top:5px; font-family:var(--mono); font-size:10px; direction:ltr; }
+.iop  { color:var(--gold); font-weight:bold; font-size:11px; }
+.iadr { color:var(--a2); }
+.iwz  { color:var(--dim); font-size:9px; }
 
-  /* ── Header ── */
-  #header {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    height: 56px;
-    background: linear-gradient(180deg, rgba(2,12,24,0.98) 0%, transparent 100%);
-    border-bottom: 1px solid var(--border);
-  }
+/* Legend */
+.legend { display:grid; grid-template-columns:1fr 1fr; gap:5px; font-size:10px; font-family:var(--mono); }
+.li { display:flex; align-items:center; gap:5px; }
+.ld { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
 
-  .header-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+/* ── Log panel (left) ── */
+#pnl-l { position:fixed; top:68px; left:14px; width:290px; z-index:50; display:flex; flex-direction:column; gap:10px; max-height:calc(100vh - 100px); }
+.log-scroll { max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; }
+.log-scroll::-webkit-scrollbar { width:3px; }
+.log-scroll::-webkit-scrollbar-thumb { background:var(--accent); border-radius:2px; }
+.log-e { background:rgba(0,200,255,.04); border:1px solid rgba(0,200,255,.1); border-radius:4px; padding:7px 9px; font-family:var(--mono); font-size:10px; line-height:1.7; animation:sli .3s ease; direction:ltr; }
+@keyframes sli { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+.log-e.ok  { border-color:rgba(0,255,136,.22); }
+.log-e.err { border-color:rgba(255,68,68,.22); }
+.lt  { color:var(--dim); font-size:9px; }
+.lop { color:var(--gold); font-weight:bold; }
+.lad { color:var(--a2); }
+.lms { color:var(--a3); }
 
-  .octagon-icon {
-    width: 32px; height: 32px;
-    background: var(--accent);
-    clip-path: polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%);
-    animation: pulse-icon 2s ease-in-out infinite;
-  }
+/* ── HUD ── */
+#hud { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--accent); border-radius:6px; padding:5px 14px; font-family:var(--mono); font-size:11px; color:var(--accent); z-index:50; opacity:0; transition:opacity .4s; white-space:nowrap; }
+#hud.on { opacity:1; }
 
-  @keyframes pulse-icon {
-    0%,100% { opacity:1; filter:drop-shadow(0 0 6px var(--accent)); }
-    50%      { opacity:0.7; filter:drop-shadow(0 0 14px var(--accent)); }
-  }
+/* ── Bottom bar ── */
+#bbar { position:fixed; bottom:0; left:0; right:0; height:30px; background:rgba(2,12,24,.95); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 18px; gap:22px; font-family:var(--mono); font-size:10px; color:var(--dim); z-index:50; }
+.bi { display:flex; gap:5px; }
+.bi span:first-child { color:var(--accent); }
 
-  .brand-text { font-size:20px; font-weight:900; letter-spacing:3px; color:var(--accent); }
-  .brand-sub  { font-size:11px; color:var(--dim); letter-spacing:2px; font-family:var(--mono); }
-
-  .header-status {
-    display: flex;
-    gap: 24px;
-    font-family: var(--mono);
-    font-size: 11px;
-  }
-
-  .stat-item { display:flex; flex-direction:column; align-items:center; gap:2px; }
-  .stat-val  { color:var(--accent2); font-size:14px; font-weight:700; }
-  .stat-lbl  { color:var(--dim); font-size:9px; letter-spacing:1px; }
-
-  /* ── Left Panel (Command) ── */
-  #panel-left {
-    position: fixed;
-    top: 72px; right: 16px;
-    width: 320px;
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .panel-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    backdrop-filter: blur(12px);
-  }
-
-  .panel-title {
-    font-size: 11px;
-    letter-spacing: 2px;
-    color: var(--accent);
-    font-family: var(--mono);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .panel-title::before {
-    content: '';
-    width: 4px; height: 4px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: blink 1s infinite;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-  .cmd-area {
-    width: 100%;
-    background: rgba(0,200,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--text);
-    font-family: var(--arabic);
-    font-size: 14px;
-    resize: none;
-    min-height: 72px;
-    outline: none;
-    direction: rtl;
-    transition: border-color 0.2s;
-    line-height: 1.6;
-  }
-  .cmd-area:focus { border-color: var(--accent); }
-  .cmd-area::placeholder { color: var(--dim); font-size:13px; }
-
-  .preset-btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 10px 0;
-  }
-
-  .preset-btn {
-    background: rgba(0,200,255,0.07);
-    border: 1px solid rgba(0,200,255,0.2);
-    border-radius: 4px;
-    color: var(--dim);
-    font-family: var(--arabic);
-    font-size: 11px;
-    padding: 4px 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    direction: rtl;
-  }
-  .preset-btn:hover { background: rgba(0,200,255,0.15); color:var(--accent); border-color:var(--accent); }
-
-  .execute-btn {
-    width: 100%;
-    background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(0,255,136,0.08));
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    color: var(--accent);
-    font-family: var(--arabic);
-    font-size: 14px;
-    font-weight: 700;
-    padding: 10px;
-    cursor: pointer;
-    letter-spacing: 2px;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-  .execute-btn::after {
-    content:'';
-    position:absolute;
-    inset:0;
-    background: linear-gradient(90deg, transparent, rgba(0,200,255,0.2), transparent);
-    transform: translateX(-100%);
-    transition: transform 0.4s;
-  }
-  .execute-btn:hover::after { transform: translateX(100%); }
-  .execute-btn:hover { background: rgba(0,200,255,0.2); box-shadow: 0 0 20px rgba(0,200,255,0.3); }
-  .execute-btn:disabled { opacity:0.4; cursor:not-allowed; }
-
-  /* ── Right Panel (Log) ── */
-  #panel-right {
-    position: fixed;
-    top: 72px; left: 16px;
-    width: 300px;
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-height: calc(100vh - 100px);
-  }
-
-  .log-scroll {
-    max-height: 320px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .log-scroll::-webkit-scrollbar { width:3px; }
-  .log-scroll::-webkit-scrollbar-track { background: transparent; }
-  .log-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius:2px; }
-
-  .log-entry {
-    background: rgba(0,200,255,0.04);
-    border: 1px solid rgba(0,200,255,0.1);
-    border-radius: 4px;
-    padding: 8px 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    line-height: 1.7;
-    animation: slide-in 0.3s ease;
-    direction: ltr;
-  }
-  @keyframes slide-in { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:none} }
-
-  .log-entry.success { border-color: rgba(0,255,136,0.25); }
-  .log-entry.error   { border-color: rgba(255,68,68,0.25); }
-
-  .log-time    { color: var(--dim); font-size:9px; }
-  .log-opcode  { color: var(--gold); font-weight:bold; }
-  .log-operand { color: var(--accent2); }
-  .log-wazn    { color: var(--accent); font-size:9px; }
-  .log-ms      { color: var(--accent3); }
-
-  /* ── Instruction cards ── */
-  .inst-card {
-    background: rgba(0,200,255,0.05);
-    border: 1px solid rgba(0,200,255,0.15);
-    border-radius: 5px;
-    padding: 8px 10px;
-    margin-top: 6px;
-    font-family: var(--mono);
-    font-size: 10px;
-    direction: ltr;
-  }
-  .inst-card .op { color:var(--gold); font-weight:bold; font-size:12px; }
-  .inst-card .addr { color:var(--accent2); }
-  .inst-card .wz  { color:var(--dim); font-size:9px; }
-
-  /* ── Zone legend ── */
-  .legend {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 5px;
-    font-size: 10px;
-    font-family: var(--mono);
-  }
-  .legend-item { display:flex; align-items:center; gap:5px; }
-  .legend-dot  { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
-
-  /* ── Bottom bar ── */
-  #bottom-bar {
-    position: fixed;
-    bottom: 0; left:0; right:0;
-    height: 32px;
-    background: rgba(2,12,24,0.95);
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    gap: 24px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--dim);
-    z-index: 50;
-  }
-  .bar-item { display:flex; gap:6px; align-items:center; }
-  .bar-item span:first-child { color:var(--accent); }
-
-  /* ── Moving vehicle label ── */
-  #vehicle-hud {
-    position: fixed;
-    bottom: 48px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--panel);
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    padding: 6px 16px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--accent);
-    z-index: 50;
-    opacity: 0;
-    transition: opacity 0.4s;
-    white-space: nowrap;
-    text-align: center;
-  }
-  #vehicle-hud.show { opacity:1; }
-
-  /* ── Loading ── */
-  #loading {
-    position: fixed;
-    inset:0;
-    background: var(--bg);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    z-index:200;
-    gap:16px;
-    transition: opacity 0.6s;
-  }
-  #loading.fade { opacity:0; pointer-events:none; }
-
-  .load-oct {
-    width:60px; height:60px;
-    background: var(--accent);
-    clip-path: polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%);
-    animation: spin-oct 1.5s linear infinite;
-  }
-  @keyframes spin-oct { to{transform:rotate(45deg)} }
-  .load-text { font-size:16px; letter-spacing:4px; color:var(--accent); }
-  .load-sub  { font-size:11px; color:var(--dim); letter-spacing:2px; font-family:var(--mono); }
+/* ── Loading ── */
+#ld { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; gap:14px; transition:opacity .6s; }
+#ld.fade { opacity:0; pointer-events:none; }
+.lo { width:56px; height:56px; background:var(--accent); clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); animation:spin-o 1.4s linear infinite; }
+@keyframes spin-o { to{transform:rotate(45deg)} }
+.lt2 { font-size:15px; letter-spacing:4px; color:var(--accent); }
+.ls  { font-size:10px; color:var(--dim); letter-spacing:2px; font-family:var(--mono); }
 </style>
 </head>
 <body>
 
 <!-- Loading -->
-<div id="loading">
-  <div class="load-oct"></div>
-  <div class="load-text">OXAGON</div>
-  <div class="load-sub">تهيئة التوأم الرقمي...</div>
+<div id="ld">
+  <div class="lo"></div>
+  <div class="lt2">OXAGON</div>
+  <div class="ls">تهيئة التوأم الرقمي...</div>
 </div>
 
 <!-- Canvas -->
-<div id="canvas-container"></div>
+<div id="cv"></div>
 
 <!-- Header -->
-<div id="header">
-  <div class="header-brand">
-    <div class="octagon-icon"></div>
+<div id="hdr">
+  <div class="brand">
+    <div class="oct-ico"></div>
     <div>
-      <div class="brand-text">OXAGON</div>
-      <div class="brand-sub">NEOM DIGITAL TWIN — Sarf ISA v1.0</div>
+      <div class="brand-t">OXAGON</div>
+      <div class="brand-s">NEOM DIGITAL TWIN — Sarf ISA v1.0</div>
     </div>
   </div>
-  <div class="header-status">
-    <div class="stat-item">
-      <div class="stat-val" id="stat-cmds">0</div>
-      <div class="stat-lbl">COMMANDS</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-val" id="stat-time">—</div>
-      <div class="stat-lbl">PARSE ms</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-val" id="stat-vehicles">3</div>
-      <div class="stat-lbl">VEHICLES</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-val" id="stat-drones">2</div>
-      <div class="stat-lbl">DRONES</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-val" style="color:var(--accent2)">ONLINE</div>
-      <div class="stat-lbl">STATUS</div>
-    </div>
+  <div class="hdr-stats">
+    <div class="st"><div class="sv" id="s-cmds">0</div><div class="sl">COMMANDS</div></div>
+    <div class="st"><div class="sv" id="s-ms">—</div><div class="sl">PARSE ms</div></div>
+    <div class="st"><div class="sv" id="s-veh">3</div><div class="sl">VEHICLES</div></div>
+    <div class="st"><div class="sv" id="s-drn">2</div><div class="sl">DRONES</div></div>
+    <div class="st"><div class="sv" style="color:var(--a2)">ONLINE</div><div class="sl">STATUS</div></div>
   </div>
 </div>
 
-<!-- Command Panel (Right) -->
-<div id="panel-right-container" style="position:fixed;top:72px;right:16px;width:320px;z-index:50;display:flex;flex-direction:column;gap:12px;">
-  <div class="panel-card">
-    <div class="panel-title">◈ مركز الأوامر — COMMAND CENTER</div>
-    <textarea class="cmd-area" id="cmd-input" placeholder="أدخل الأمر العربي...
-مثال: انطلق لميناء أوكساجون وافحص الحاويات"></textarea>
-    <div class="preset-btns">
-      <button class="preset-btn" onclick="setCmd('انطلق لميناء أوكساجون وافحص الحاويات')">⚓ فحص الميناء</button>
-      <button class="preset-btn" onclick="setCmd('توجه للمنطقة اللوجستية وسلّم البضاعة')">📦 توصيل</button>
-      <button class="preset-btn" onclick="setCmd('أقلع درون وراقب المصنع')">🚁 درون</button>
-      <button class="preset-btn" onclick="setCmd('انطلق للطاقة واشحن البطارية إذا انخفضت')">⚡ شحن</button>
-      <button class="preset-btn" onclick="setCmd('توجه للمركز وارجع للمستودع')">🔄 دورة</button>
+<!-- Command Panel RIGHT -->
+<div id="pnl-r">
+  <div class="card">
+    <div class="ptitle">◈ مركز الأوامر — COMMAND CENTER</div>
+    <textarea class="cmd-ta" id="cmd"
+      placeholder="أدخل الأمر العربي...&#10;مثال: انطلق لميناء أوكساجون وافحص الحاويات"></textarea>
+    <div class="presets">
+      <button class="pb" onclick="set('انطلق لميناء أوكساجون وافحص الحاويات')">⚓ فحص الميناء</button>
+      <button class="pb" onclick="set('توجه للمنطقة اللوجستية وسلّم البضاعة')">📦 توصيل</button>
+      <button class="pb" onclick="set('أقلع درون وراقب المصنع')">🚁 درون</button>
+      <button class="pb" onclick="set('انطلق للطاقة واشحن البطارية إذا انخفضت')">⚡ شحن</button>
+      <button class="pb" onclick="set('توجه للمركز وارجع للمستودع')">🔄 دورة</button>
     </div>
-    <button class="execute-btn" id="exec-btn" onclick="executeCommand()">⚡ تنفيذ الأمر</button>
-    <div id="inst-output"></div>
+    <button class="exec-btn" id="ebtn" onclick="run()">⚡ تنفيذ الأمر</button>
+    <div id="iout"></div>
   </div>
-
-  <!-- Legend -->
-  <div class="panel-card">
-    <div class="panel-title">◈ مناطق أوكساجون</div>
+  <div class="card">
+    <div class="ptitle">◈ مناطق أوكساجون</div>
     <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#0099ff"></div>ميناء</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ff8c00"></div>لوجستي</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#cc4400"></div>صناعي</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#00cc66"></div>طاقة</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#9955ff"></div>سكني</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div>مركز</div>
+      <div class="li"><div class="ld" style="background:#0099ff"></div>ميناء</div>
+      <div class="li"><div class="ld" style="background:#ff8c00"></div>لوجستي</div>
+      <div class="li"><div class="ld" style="background:#cc4400"></div>صناعي</div>
+      <div class="li"><div class="ld" style="background:#00cc66"></div>طاقة</div>
+      <div class="li"><div class="ld" style="background:#9955ff"></div>سكني</div>
+      <div class="li"><div class="ld" style="background:#ffd700"></div>مركز</div>
     </div>
   </div>
 </div>
 
-<!-- Log Panel (Left) -->
-<div id="panel-left-container" style="position:fixed;top:72px;left:16px;width:300px;z-index:50;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 100px);">
-  <div class="panel-card" style="flex:1;min-height:0;">
-    <div class="panel-title">◈ سجل التنفيذ — EXECUTION LOG</div>
-    <div class="log-scroll" id="exec-log">
-      <div class="log-entry" style="direction:rtl;color:var(--dim);font-family:var(--arabic);font-size:11px;">
+<!-- Log Panel LEFT -->
+<div id="pnl-l">
+  <div class="card">
+    <div class="ptitle">◈ سجل التنفيذ — EXECUTION LOG</div>
+    <div class="log-scroll" id="log">
+      <div class="log-e" style="direction:rtl;color:var(--dim);font-family:var(--ar);font-size:11px;">
         في انتظار الأوامر... النظام جاهز.
       </div>
     </div>
   </div>
 </div>
 
-<!-- Vehicle HUD -->
-<div id="vehicle-hud"></div>
+<!-- HUD -->
+<div id="hud"></div>
 
 <!-- Bottom bar -->
-<div id="bottom-bar">
-  <div class="bar-item"><span>ENGINE</span><span>NEOM-Sarf-ISA v1.0</span></div>
-  <div class="bar-item"><span>RENDERER</span><span>Three.js r128</span></div>
-  <div class="bar-item"><span>BACKEND</span><span>Flask/Python</span></div>
-  <div class="bar-item"><span>ZONE</span><span id="bar-zone">—</span></div>
-  <div class="bar-item"><span>FPS</span><span id="bar-fps">60</span></div>
+<div id="bbar">
+  <div class="bi"><span>ENGINE</span><span>NEOM-Sarf-ISA v1.0</span></div>
+  <div class="bi"><span>RENDERER</span><span>Three.js r128</span></div>
+  <div class="bi"><span>BACKEND</span><span>Flask/Python</span></div>
+  <div class="bi"><span>ZONE</span><span id="b-zone">—</span></div>
+  <div class="bi"><span>FPS</span><span id="b-fps">60</span></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="/static/js/oxagon.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 
 <script>
-  const API = '';
+/* ── UI logic ─────────────────────────────────────────── */
+function set(t) { document.getElementById('cmd').value = t; }
 
-  function setCmd(txt) {
-    document.getElementById('cmd-input').value = txt;
+async function run() {
+  const sentence = document.getElementById('cmd').value.trim();
+  if (!sentence) return;
+  const btn = document.getElementById('ebtn');
+  btn.disabled = true;
+  btn.textContent = '⟳ جاري التحليل...';
+  try {
+    const res  = await fetch('/api/parse', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({sentence})
+    });
+    const data = await res.json();
+
+    document.getElementById('s-cmds').textContent =
+      parseInt(document.getElementById('s-cmds').textContent || 0) + 1;
+    document.getElementById('s-ms').textContent = data.parse_time_ms;
+
+    renderInst(data);
+    addLog(data);
+
+    if (window.oxagon && data.instructions && data.instructions.length)
+      window.oxagon.exec(data.instructions);
+
+  } catch(e) { addLog({error: e.message}); }
+  btn.disabled = false;
+  btn.textContent = '⚡ تنفيذ الأمر';
+}
+
+function renderInst(data) {
+  const el = document.getElementById('iout');
+  if (!data.instructions || !data.instructions.length) {
+    el.innerHTML = '<div style="color:var(--warn);font-size:11px;margin-top:7px;font-family:var(--mono)">⚠ لم يُتعرَّف على أمر</div>';
+    return;
   }
-
-  async function executeCommand() {
-    const sentence = document.getElementById('cmd-input').value.trim();
-    if (!sentence) return;
-
-    const btn = document.getElementById('exec-btn');
-    btn.disabled = true;
-    btn.textContent = '⟳ جاري التحليل...';
-
-    try {
-      const res  = await fetch(API + '/api/parse', {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({ sentence })
-      });
-      const data = await res.json();
-
-      // Update header stats
-      const cmds = parseInt(document.getElementById('stat-cmds').textContent) + 1;
-      document.getElementById('stat-cmds').textContent = cmds;
-      document.getElementById('stat-time').textContent = data.parse_time_ms;
-
-      // Render instructions
-      renderInstructions(data);
-      addLog(data);
-
-      // Execute in 3D
-      if (window.oxagon && data.instructions.length > 0) {
-        window.oxagon.executeInstructions(data.instructions);
-      }
-
-    } catch(e) {
-      addLog({error: e.message});
-    }
-
-    btn.disabled  = false;
-    btn.textContent = '⚡ تنفيذ الأمر';
-  }
-
-  function renderInstructions(data) {
-    const out = document.getElementById('inst-output');
-    if (!data.instructions || !data.instructions.length) {
-      out.innerHTML = '<div style="color:var(--warn);font-size:11px;margin-top:8px;font-family:var(--mono)">لم يُتعرَّف على أمر</div>';
-      return;
-    }
-    out.innerHTML = data.instructions.map((inst,i) => `
-      <div class="inst-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="op">T${i+1}: ${inst.opcode}</span>
-          <span class="addr">${inst.operand}</span>
-        </div>
-        <div class="wz">${inst.wazn}</div>
-        ${inst.zone_label ? `<div style="color:var(--text);font-size:9px;margin-top:2px">↳ ${inst.zone_label}</div>` : ''}
-        ${inst.condition ? `<div style="color:var(--accent3);font-size:9px">⚑ ${inst.condition.flag}</div>` : ''}
-      </div>
-    `).join('');
-  }
-
-  function addLog(data) {
-    const log  = document.getElementById('exec-log');
-    const time = new Date().toTimeString().slice(0,8);
-
-    if (data.error) {
-      log.innerHTML = `<div class="log-entry error">
-        <div class="log-time">${time}</div>
-        <div style="color:var(--warn)">ERROR: ${data.error}</div>
-      </div>` + log.innerHTML;
-      return;
-    }
-
-    const insts = (data.instructions||[]).map(i =>
-      `<div><span class="log-opcode">${i.opcode}</span> → <span class="log-operand">${i.operand}</span></div>`
-    ).join('');
-
-    log.innerHTML = `<div class="log-entry success">
+  el.innerHTML = data.instructions.map((i,n) => `
+    <div class="inst-card">
       <div style="display:flex;justify-content:space-between">
-        <span class="log-time">${time}</span>
-        <span class="log-ms">${data.parse_time_ms}ms</span>
+        <span class="iop">T${n+1}: ${i.opcode}</span>
+        <span class="iadr">${i.operand}</span>
       </div>
-      <div style="color:var(--text);font-size:9px;margin:3px 0;direction:rtl;font-family:var(--arabic)">${data.sentence.slice(0,40)}${data.sentence.length>40?'…':''}</div>
-      ${insts}
-      <div style="color:var(--dim);font-size:9px">pipeline: ${data.pipeline_len} inst</div>
-    </div>` + log.innerHTML;
+      <div class="iwz">${i.wazn}</div>
+      ${i.zone_label ? `<div style="color:var(--text);font-size:9px;margin-top:2px">↳ ${i.zone_label}</div>` : ''}
+      ${i.condition  ? `<div style="color:var(--a3);font-size:9px">⚑ ${i.condition.flag}</div>` : ''}
+    </div>`).join('');
+}
+
+function addLog(data) {
+  const log  = document.getElementById('log');
+  const time = new Date().toTimeString().slice(0,8);
+  if (data.error) {
+    log.innerHTML = `<div class="log-e err"><div class="lt">${time}</div><div style="color:var(--warn)">ERROR: ${data.error}</div></div>` + log.innerHTML;
+    return;
   }
+  const rows = (data.instructions||[]).map(i =>
+    `<div><span class="lop">${i.opcode}</span> → <span class="lad">${i.operand}</span></div>`
+  ).join('');
+  log.innerHTML = `<div class="log-e ok">
+    <div style="display:flex;justify-content:space-between">
+      <span class="lt">${time}</span><span class="lms">${data.parse_time_ms} ms</span>
+    </div>
+    <div style="color:var(--text);font-size:9px;margin:3px 0;direction:rtl;font-family:var(--ar)">${data.sentence.slice(0,42)}${data.sentence.length>42?'…':''}</div>
+    ${rows}
+    <div style="color:var(--dim);font-size:9px">pipeline: ${data.pipeline_len} inst</div>
+  </div>` + log.innerHTML;
+}
 
-  // Show vehicle HUD
-  window.showHUD = function(msg, dur=3000) {
-    const hud = document.getElementById('vehicle-hud');
-    hud.textContent = msg;
-    hud.classList.add('show');
-    setTimeout(() => hud.classList.remove('show'), dur);
-  };
+/* HUD helper — called from script.js */
+window.showHUD = function(msg, ms=3000) {
+  const h = document.getElementById('hud');
+  h.textContent = msg; h.classList.add('on');
+  clearTimeout(h._t);
+  h._t = setTimeout(() => h.classList.remove('on'), ms);
+};
+window.setZone = function(name) {
+  document.getElementById('b-zone').textContent = name;
+};
 
-  window.setBarZone = function(name) {
-    document.getElementById('bar-zone').textContent = name;
-  };
-
-  // Hide loading after scene ready
-  window.addEventListener('oxagon-ready', () => {
-    const ld = document.getElementById('loading');
-    ld.classList.add('fade');
-    setTimeout(() => ld.remove(), 700);
-  });
+/* Hide loading after Three.js ready */
+window.addEventListener('oxagon-ready', () => {
+  const ld = document.getElementById('ld');
+  ld.classList.add('fade');
+  setTimeout(() => ld.remove(), 700);
+});
 </script>
 </body>
 </html>
-HTMLEOF
-echo "index.html done"
