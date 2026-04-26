@@ -2,13 +2,14 @@
 OXAGON Digital Twin — Sarf ISA Backend
 نظام صَرْف ISA لمدينة أوكساجون
 """
-import re, time, uuid
+import re, time, uuid, os
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 
-app = Flask(__name__)
+# التعديل هنا لضمان معرفة Flask بمكان الملفات
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
-# ── CORS manual (no flask-cors needed) ──────────────────────
+# ── CORS manual ──────────────────────
 @app.after_request
 def add_cors(response):
     response.headers["Access-Control-Allow-Origin"]  = "*"
@@ -61,14 +62,12 @@ def parse_arabic(sentence: str) -> dict:
     t0 = time.perf_counter()
     instructions = []
 
-    # نوع المركبة من الجملة الكاملة
     vehicle_global = "VEHICLE"
     for pattern, vtype in VEHICLE_MAP.items():
         if re.search(pattern, sentence):
             vehicle_global = vtype
             break
 
-    # تقسيم بالواو (pipeline separator)
     clauses = re.split(r'\s+و(?:َ)?\s*', sentence)
 
     for clause in clauses:
@@ -133,13 +132,6 @@ def api_parse():
         return jsonify({"error": "الجملة فارغة"}), 400
     return jsonify(parse_arabic(sentence))
 
-@app.route("/api/zones")
-def api_zones():
-    return jsonify(OXAGON_ZONES)
-
-@app.route("/api/ping")
-def api_ping():
-    return jsonify({"status": "ok", "engine": "NEOM-Sarf-ISA v1.0"})
-
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    # تشغيل التطبيق
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
