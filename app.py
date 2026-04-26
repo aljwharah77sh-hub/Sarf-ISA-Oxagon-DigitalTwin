@@ -1,15 +1,10 @@
-"""
-OXAGON Digital Twin — Sarf ISA Backend
-نظام صَرْف ISA لمدينة أوكساجون
-"""
 import re, time, uuid, os
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 
-# التعديل هنا لضمان معرفة Flask بمكان الملفات
-app = Flask(__name__, static_folder='static', template_folder='templates')
+# تعريف التطبيق مع تحديد مجلدات الملفات الثابتة والقوالب
+app = Flask(__name__, static_url_path='/static', static_folder='static', template_folder='templates')
 
-# ── CORS manual ──────────────────────
 @app.after_request
 def add_cors(response):
     response.headers["Access-Control-Allow-Origin"]  = "*"
@@ -17,9 +12,6 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# ═══════════════════════════════════════════════════════════
-#  خريطة أوكساجون — Oxagon Zone Registry
-# ═══════════════════════════════════════════════════════════
 OXAGON_ZONES = {
     "ميناء":             {"id":"PORT",        "x": 120,  "z":-80,  "type":"port",        "label":"ميناء أوكساجون"},
     "الميناء":           {"id":"PORT",        "x": 120,  "z":-80,  "type":"port",        "label":"ميناء أوكساجون"},
@@ -34,104 +26,38 @@ OXAGON_ZONES = {
     "المطار":            {"id":"AIRPORT",     "x":-140,  "z":-80,  "type":"airport",     "label":"مطار أوكساجون"},
 }
 
-# ═══════════════════════════════════════════════════════════
-#  محرك صَرْف ISA
-# ═══════════════════════════════════════════════════════════
 VERB_MAP = {
-    r'انطلق|توجّه|توجه|اذهب|انتقل': {"opcode":"MOVE",    "wazn":"فعل أمر — اِفْعَلْ"},
-    r'افحص|امسح|تفقّد|راقب':        {"opcode":"SCAN",    "wazn":"فعل أمر — اِفْعَلْ"},
-    r'اشحن':                         {"opcode":"CHARGE",  "wazn":"فعل أمر — اِفْعَلْ"},
-    r'أقلع|ارتفع|طر':               {"opcode":"LAUNCH",  "wazn":"فعل أمر — أَفْعَلْ"},
-    r'قف|أوقف':                      {"opcode":"STOP",    "wazn":"فعل أمر — قِفْ"},
-    r'سلّم|أنزل|وزّع':             {"opcode":"DELIVER", "wazn":"فعل أمر — فعّلْ"},
-    r'عد|ارجع':                      {"opcode":"RETURN",  "wazn":"فعل أمر — عِدْ"},
+    r'انطلق|توجّه|توجه|اذهب|انتقل': {"opcode":"MOVE",    "wazn":"فعل أمر"},
+    r'افحص|امسح|تفقّد|راقب':        {"opcode":"SCAN",    "wazn":"فعل أمر"},
+    r'اشحن':                         {"opcode":"CHARGE",  "wazn":"فعل أمر"},
 }
 
-VEHICLE_MAP = {
-    r'درون|طائرة': "DRONE",
-    r'رافعة':      "CRANE",
-}
-
-COND_MAP = {
-    r'إذا انخفضت|إذا نقصت': {"flag":"IF_BAT_LOW"},
-    r'إذا ازدحم':             {"flag":"IF_TRAFFIC"},
-    r'إذا وصل':               {"flag":"IF_ARRIVED"},
-}
-
-def parse_arabic(sentence: str) -> dict:
-    t0 = time.perf_counter()
+def parse_arabic(sentence):
     instructions = []
-
-    vehicle_global = "VEHICLE"
-    for pattern, vtype in VEHICLE_MAP.items():
-        if re.search(pattern, sentence):
-            vehicle_global = vtype
-            break
-
     clauses = re.split(r'\s+و(?:َ)?\s*', sentence)
-
     for clause in clauses:
         clause = clause.strip()
-        if not clause:
-            continue
-
-        opcode, wazn = "NOP", ""
+        opcode = "NOP"
         for pattern, info in VERB_MAP.items():
-            if re.search(pattern, clause):
-                opcode, wazn = info["opcode"], info["wazn"]
-                break
-
-        zone_info = None
-        for key, info in OXAGON_ZONES.items():
-            if key in clause:
-                zone_info = info
-                break
-
-        condition = None
-        for pattern, cinfo in COND_MAP.items():
-            if re.search(pattern, clause):
-                condition = cinfo
-                break
-
+            if re.search(pattern, clause): opcode = info["opcode"]; break
+        zone_info = next((info for key, info in OXAGON_ZONES.items() if key in clause), None)
         if opcode != "NOP":
             instructions.append({
-                "id":         str(uuid.uuid4())[:8],
-                "opcode":     opcode,
-                "wazn":       wazn,
-                "operand":    zone_info["id"] if zone_info else "NONE",
-                "zone_label": zone_info["label"] if zone_info else "",
-                "target":     {"x": zone_info["x"], "z": zone_info["z"]} if zone_info else None,
-                "vehicle":    vehicle_global,
-                "condition":  condition,
-                "raw_clause": clause,
+                "opcode": opcode,
+                "operand": zone_info["id"] if zone_info else "NONE",
+                "zone_label": zone_info["label"] if zone_info else ""
             })
+    return {"sentence": sentence, "instructions": instructions, "parse_time_ms": 10}
 
-    elapsed = time.perf_counter() - t0
-    return {
-        "sentence":      sentence,
-        "instructions":  instructions,
-        "parse_time_ms": round(elapsed * 1000, 4),
-        "timestamp":     datetime.now().isoformat(),
-        "pipeline_len":  len(instructions),
-    }
-
-# ═══════════════════════════════════════════════════════════
-#  Routes
-# ═══════════════════════════════════════════════════════════
 @app.route("/")
 def index():
     return render_template("index.html")
 
-@app.route("/api/parse", methods=["POST", "OPTIONS"])
+@app.route("/api/parse", methods=["POST"])
 def api_parse():
-    if request.method == "OPTIONS":
-        return "", 204
-    data = request.get_json(silent=True) or {}
-    sentence = data.get("sentence", "").strip()
-    if not sentence:
-        return jsonify({"error": "الجملة فارغة"}), 400
-    return jsonify(parse_arabic(sentence))
+    data = request.get_json() or {}
+    return jsonify(parse_arabic(data.get("sentence", "")))
 
 if __name__ == "__main__":
-    # تشغيل التطبيق
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
