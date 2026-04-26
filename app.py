@@ -2,68 +2,73 @@
 OXAGON Digital Twin — Sarf ISA Backend
 نظام صَرْف ISA لمدينة أوكساجون
 """
-import re
-import time
-import uuid
+import re, time, uuid
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+
+# ── CORS manual (no flask-cors needed) ──────────────────────
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"]  = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return response
 
 # ═══════════════════════════════════════════════════════════
 #  خريطة أوكساجون — Oxagon Zone Registry
 # ═══════════════════════════════════════════════════════════
 OXAGON_ZONES = {
-    # المنطقة اللوجستية
-    "ميناء":          {"id": "PORT",       "x":  120, "z": -80,  "type": "port",      "label": "ميناء أوكساجون"},
-    "المنطقة اللوجستية":{"id": "LOGISTICS", "x":  60,  "z":  20,  "type": "logistics", "label": "المنطقة اللوجستية"},
-    "مستودع":         {"id": "WAREHOUSE",  "x":  80,  "z":  60,  "type": "logistics", "label": "مستودع المواد"},
-    "الحاويات":       {"id": "CONTAINERS", "x": 140,  "z": -40,  "type": "port",      "label": "منطقة الحاويات"},
-
-    # المنطقة الصناعية
-    "المصنع":         {"id": "FACTORY",    "x": -60,  "z": -60,  "type": "industry",  "label": "المصنع الرئيسي"},
-    "الطاقة":         {"id": "ENERGY",     "x": -120, "z":  20,  "type": "energy",    "label": "محطة الطاقة"},
-    "محطة الشحن":     {"id": "CHARGE",     "x": -80,  "z":  80,  "type": "energy",    "label": "محطة الشحن"},
-
-    # المنطقة السكنية
-    "السكن":          {"id": "RESIDENTIAL","x":  20,  "z":  100, "type": "residential","label": "الحي السكني"},
-    "المركز":         {"id": "CENTER",     "x":  0,   "z":  0,   "type": "hub",        "label": "مركز أوكساجون"},
-    "المطار":         {"id": "AIRPORT",    "x": -140, "z": -80,  "type": "airport",    "label": "مطار أوكساجون"},
+    "ميناء":             {"id":"PORT",        "x": 120,  "z":-80,  "type":"port",        "label":"ميناء أوكساجون"},
+    "الميناء":           {"id":"PORT",        "x": 120,  "z":-80,  "type":"port",        "label":"ميناء أوكساجون"},
+    "المنطقة اللوجستية":{"id":"LOGISTICS",   "x":  60,  "z": 20,  "type":"logistics",   "label":"المنطقة اللوجستية"},
+    "مستودع":            {"id":"WAREHOUSE",   "x":  80,  "z": 60,  "type":"logistics",   "label":"مستودع المواد"},
+    "الحاويات":          {"id":"CONTAINERS",  "x": 140,  "z":-40,  "type":"port",        "label":"منطقة الحاويات"},
+    "المصنع":            {"id":"FACTORY",     "x": -60,  "z":-60,  "type":"industry",    "label":"المصنع الرئيسي"},
+    "الطاقة":            {"id":"ENERGY",      "x":-120,  "z": 20,  "type":"energy",      "label":"محطة الطاقة"},
+    "محطة الشحن":        {"id":"CHARGE",      "x": -80,  "z": 80,  "type":"energy",      "label":"محطة الشحن"},
+    "السكن":             {"id":"RESIDENTIAL", "x":  20,  "z":100,  "type":"residential", "label":"الحي السكني"},
+    "المركز":            {"id":"CENTER",      "x":   0,  "z":  0,  "type":"hub",         "label":"مركز أوكساجون"},
+    "المطار":            {"id":"AIRPORT",     "x":-140,  "z":-80,  "type":"airport",     "label":"مطار أوكساجون"},
 }
 
 # ═══════════════════════════════════════════════════════════
 #  محرك صَرْف ISA
 # ═══════════════════════════════════════════════════════════
 VERB_MAP = {
-    r'انطلق|توجّه|توجه|اذهب|انتقل': {"opcode": "MOVE",   "wazn": "فعل أمر — اِفْعَلْ"},
-    r'افحص|امسح|تفقّد|راقب':         {"opcode": "SCAN",   "wazn": "فعل أمر — اِفْعَلْ"},
-    r'اشحن':                          {"opcode": "CHARGE", "wazn": "فعل أمر — اِفْعَلْ"},
-    r'أقلع|ارتفع|طر':                 {"opcode": "LAUNCH", "wazn": "فعل أمر — أَفْعَلْ"},
-    r'قف|أوقف|ابق':                   {"opcode": "STOP",   "wazn": "فعل أمر — قِفْ"},
-    r'سلّم|أنزل|وزّع':               {"opcode": "DELIVER","wazn": "فعل أمر — فعّلْ"},
-    r'عد|ارجع|ارجوع':                 {"opcode": "RETURN", "wazn": "فعل أمر — عِدْ"},
+    r'انطلق|توجّه|توجه|اذهب|انتقل': {"opcode":"MOVE",    "wazn":"فعل أمر — اِفْعَلْ"},
+    r'افحص|امسح|تفقّد|راقب':        {"opcode":"SCAN",    "wazn":"فعل أمر — اِفْعَلْ"},
+    r'اشحن':                         {"opcode":"CHARGE",  "wazn":"فعل أمر — اِفْعَلْ"},
+    r'أقلع|ارتفع|طر':               {"opcode":"LAUNCH",  "wazn":"فعل أمر — أَفْعَلْ"},
+    r'قف|أوقف':                      {"opcode":"STOP",    "wazn":"فعل أمر — قِفْ"},
+    r'سلّم|أنزل|وزّع':             {"opcode":"DELIVER", "wazn":"فعل أمر — فعّلْ"},
+    r'عد|ارجع':                      {"opcode":"RETURN",  "wazn":"فعل أمر — عِدْ"},
 }
 
 VEHICLE_MAP = {
-    r'مركبة|سيارة|ناقلة':  "VEHICLE",
-    r'درون|طائرة|drone':   "DRONE",
-    r'رافعة|رافعه':        "CRANE",
+    r'درون|طائرة': "DRONE",
+    r'رافعة':      "CRANE",
 }
 
 COND_MAP = {
-    r'إذا انخفضت|إذا نقصت البطارية': {"flag": "IF_BAT_LOW",  "threshold": 20},
-    r'إذا ازدحم|عند الازدحام':        {"flag": "IF_TRAFFIC",  "threshold": 2},
-    r'إذا وصل|عند الوصول':            {"flag": "IF_ARRIVED",  "threshold": None},
+    r'إذا انخفضت|إذا نقصت': {"flag":"IF_BAT_LOW"},
+    r'إذا ازدحم':             {"flag":"IF_TRAFFIC"},
+    r'إذا وصل':               {"flag":"IF_ARRIVED"},
 }
 
 def parse_arabic(sentence: str) -> dict:
-    """تحليل الجملة العربية وتوليد تعليمات ISA"""
-    t_start = time.perf_counter()
-
+    t0 = time.perf_counter()
     instructions = []
-    # تقسيم بالواو (pipeline)
+
+    # نوع المركبة من الجملة الكاملة
+    vehicle_global = "VEHICLE"
+    for pattern, vtype in VEHICLE_MAP.items():
+        if re.search(pattern, sentence):
+            vehicle_global = vtype
+            break
+
+    # تقسيم بالواو (pipeline separator)
     clauses = re.split(r'\s+و(?:َ)?\s*', sentence)
 
     for clause in clauses:
@@ -74,29 +79,15 @@ def parse_arabic(sentence: str) -> dict:
         opcode, wazn = "NOP", ""
         for pattern, info in VERB_MAP.items():
             if re.search(pattern, clause):
-                opcode = info["opcode"]
-                wazn   = info["wazn"]
+                opcode, wazn = info["opcode"], info["wazn"]
                 break
 
-        # استخراج الوجهة
-        zone = None
         zone_info = None
         for key, info in OXAGON_ZONES.items():
             if key in clause:
-                zone      = key
                 zone_info = info
                 break
 
-        # استخراج نوع المركبة
-        vehicle = "VEHICLE"
-        for pattern, vtype in VEHICLE_MAP.items():
-            if re.search(pattern, clause):
-                vehicle = vtype
-                break
-        if re.search(r'درون|طائرة|drone', sentence, re.IGNORECASE):
-            vehicle = "DRONE"
-
-        # استخراج الشرط
         condition = None
         for pattern, cinfo in COND_MAP.items():
             if re.search(pattern, clause):
@@ -104,27 +95,25 @@ def parse_arabic(sentence: str) -> dict:
                 break
 
         if opcode != "NOP":
-            inst = {
-                "id":        str(uuid.uuid4())[:8],
-                "opcode":    opcode,
-                "wazn":      wazn,
-                "operand":   zone_info["id"] if zone_info else "NONE",
+            instructions.append({
+                "id":         str(uuid.uuid4())[:8],
+                "opcode":     opcode,
+                "wazn":       wazn,
+                "operand":    zone_info["id"] if zone_info else "NONE",
                 "zone_label": zone_info["label"] if zone_info else "",
-                "target":    {"x": zone_info["x"], "z": zone_info["z"]} if zone_info else None,
-                "vehicle":   vehicle,
-                "condition": condition,
+                "target":     {"x": zone_info["x"], "z": zone_info["z"]} if zone_info else None,
+                "vehicle":    vehicle_global,
+                "condition":  condition,
                 "raw_clause": clause,
-            }
-            instructions.append(inst)
+            })
 
-    elapsed = time.perf_counter() - t_start
-
+    elapsed = time.perf_counter() - t0
     return {
-        "sentence":     sentence,
-        "instructions": instructions,
+        "sentence":      sentence,
+        "instructions":  instructions,
         "parse_time_ms": round(elapsed * 1000, 4),
-        "timestamp":    datetime.now().isoformat(),
-        "pipeline_len": len(instructions),
+        "timestamp":     datetime.now().isoformat(),
+        "pipeline_len":  len(instructions),
     }
 
 # ═══════════════════════════════════════════════════════════
@@ -134,20 +123,21 @@ def parse_arabic(sentence: str) -> dict:
 def index():
     return render_template("index.html")
 
-@app.route("/api/parse", methods=["POST"])
+@app.route("/api/parse", methods=["POST", "OPTIONS"])
 def api_parse():
-    data = request.get_json()
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
     sentence = data.get("sentence", "").strip()
     if not sentence:
         return jsonify({"error": "الجملة فارغة"}), 400
-    result = parse_arabic(sentence)
-    return jsonify(result)
+    return jsonify(parse_arabic(sentence))
 
-@app.route("/api/zones", methods=["GET"])
+@app.route("/api/zones")
 def api_zones():
     return jsonify(OXAGON_ZONES)
 
-@app.route("/api/ping", methods=["GET"])
+@app.route("/api/ping")
 def api_ping():
     return jsonify({"status": "ok", "engine": "NEOM-Sarf-ISA v1.0"})
 
