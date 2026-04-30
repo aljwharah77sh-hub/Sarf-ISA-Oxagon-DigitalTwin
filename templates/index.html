@@ -1,177 +1,397 @@
-/**
- * OXAGON Digital Twin — Three.js Scene Engine
- * نظام المحاكاة ثلاثية الأبعاد لمدينة أوكساجون
- */
-(function () {
-  'use strict';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SARF Port — SarfOS Digital Twin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&family=Saira:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Brand tokens ── */
+:root {
+  --black:    #060A0F;
+  --dark:     #0A0E14;
+  --dark2:    #0E1318;
+  --panel:    rgba(8,12,18,0.94);
+  --copper:   #C46832;
+  --copper2:  #A0501E;
+  --copper-l: rgba(196,104,50,0.18);
+  --copper-d: rgba(196,104,50,0.08);
+  --green:    #00C853;
+  --red:      #EF4444;
+  --text:     #D4B896;
+  --text2:    #8A7060;
+  --dim:      #3A2E24;
+  --border:   rgba(196,104,50,0.15);
+  --ar: 'Tajawal', sans-serif;
+  --en: 'Saira', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--black); color:var(--text); font-family:var(--ar); overflow:hidden; height:100vh; width:100vw; }
+canvas { display:block; position:absolute; inset:0; z-index:1; }
 
-  // ── Zone definitions (matches backend) ──────────────────────
-  const ZONES = {
-    PORT:        { x: 120,  z: -80,  color: 0x0099ff, label: 'ميناء أوكساجون',    type: 'port'        },
-    LOGISTICS:   { x: 60,   z: 20,   color: 0xff8c00, label: 'المنطقة اللوجستية', type: 'logistics'   },
-    WAREHOUSE:   { x: 80,   z: 60,   color: 0xffaa33, label: 'مستودع المواد',     type: 'logistics'   },
-    CONTAINERS:  { x: 140,  z: -40,  color: 0x0077cc, label: 'منطقة الحاويات',   type: 'port'        },
-    FACTORY:     { x: -60,  z: -60,  color: 0xcc4400, label: 'المصنع الرئيسي',   type: 'industry'    },
-    ENERGY:      { x: -120, z: 20,   color: 0x00cc66, label: 'محطة الطاقة',      type: 'energy'      },
-    CHARGE:      { x: -80,  z: 80,   color: 0x44dd88, label: 'محطة الشحن',       type: 'energy'      },
-    RESIDENTIAL: { x: 20,   z: 100,  color: 0x9955ff, label: 'الحي السكني',      type: 'residential' },
-    CENTER:      { x: 0,    z: 0,    color: 0xffd700, label: 'مركز أوكساجون',    type: 'hub'         },
-    AIRPORT:     { x: -140, z: -80,  color: 0xaaaaaa, label: 'مطار أوكساجون',    type: 'airport'     },
-  };
+/* ── Grain overlay ── */
+body::after { content:''; position:fixed; inset:0; opacity:.03; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); pointer-events:none; z-index:200; }
 
-  // ── Scene setup ──────────────────────────────────────────────
-  const container = document.getElementById('cv'); // Matching the ID in your HTML
-  const W = window.innerWidth, H = window.innerHeight;
+/* ── Loading ── */
+#ld { position:fixed; inset:0; background:var(--black); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; transition:opacity .9s; }
+#ld.hide { opacity:0; pointer-events:none; }
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(W, H);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.8;
-  container.appendChild(renderer.domElement);
+/* Sarf logo SVG animation */
+.sarf-logo-anim { width:120px; height:80px; }
+.sarf-logo-anim path, .sarf-logo-anim circle, .sarf-logo-anim line { stroke-dasharray:300; stroke-dashoffset:300; animation:draw 2s ease forwards; }
+@keyframes draw { to { stroke-dashoffset:0; } }
+.ld-name { font-family:var(--en); font-size:28px; font-weight:700; letter-spacing:8px; color:var(--copper); }
+.ld-sub  { font-family:var(--en); font-size:11px; color:var(--text2); letter-spacing:4px; }
+.ld-bar  { width:200px; height:1px; background:var(--dim); position:relative; overflow:hidden; }
+.ld-bar::after { content:''; position:absolute; inset:0; background:var(--copper); animation:bar 2s ease forwards; transform:translateX(-100%); }
+@keyframes bar { to { transform:translateX(0); } }
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x010a14);
-  scene.fog = new THREE.FogExp2(0x010a14, 0.0028);
+/* ── Header ── */
+#hdr {
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  height:52px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px;
+  background:linear-gradient(180deg,rgba(6,10,15,.97) 0%,transparent 100%);
+  border-bottom:1px solid var(--border);
+}
+.hdr-brand { display:flex; align-items:center; gap:12px; }
+/* Inline SARF logo */
+.logo-mark { width:38px; height:26px; }
+.brand-name { font-family:var(--en); font-size:17px; font-weight:700; letter-spacing:5px; color:var(--copper); }
+.brand-sub  { font-size:9px; color:var(--text2); letter-spacing:2px; font-family:var(--en); }
+.hdr-stats  { display:flex; gap:20px; }
+.stat       { text-align:center; }
+.sv         { font-size:13px; font-weight:700; color:var(--green); font-family:var(--en); }
+.sl         { font-size:8px; color:var(--text2); letter-spacing:1px; font-family:var(--en); }
 
-  const camera = new THREE.PerspectiveCamera(45, W / H, 1, 2000);
-  camera.position.set(0, 220, 280);
-  camera.lookAt(0, 0, 0);
+/* ── Panels ── */
+.card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px; padding:14px;
+  backdrop-filter:blur(16px);
+}
+.ptitle {
+  font-size:9px; letter-spacing:2px; color:var(--copper);
+  font-family:var(--en); margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.ptitle::before { content:''; width:4px; height:4px; background:var(--copper); border-radius:50%; animation:bk 1s infinite; }
+@keyframes bk { 0%,100%{opacity:1} 50%{opacity:0} }
 
-  // ── Lighting ─────────────────────────────────────────────────
-  scene.add(new THREE.AmbientLight(0x0a1a2e, 2.0));
-  const sunLight = new THREE.DirectionalLight(0x80c8ff, 1.2);
-  sunLight.position.set(200, 300, 100);
-  sunLight.castShadow = true;
-  scene.add(sunLight);
+/* ── Command panel RIGHT ── */
+#pr { position:fixed; top:62px; right:14px; width:305px; z-index:50; display:flex; flex-direction:column; gap:10px; }
+textarea {
+  width:100%; background:rgba(196,104,50,.05); border:1px solid var(--border);
+  border-radius:5px; padding:9px 11px; color:var(--text); font-family:var(--ar);
+  font-size:13px; resize:none; height:70px; outline:none; direction:rtl;
+  line-height:1.65; transition:border-color .2s;
+}
+textarea:focus { border-color:var(--copper); }
+textarea::placeholder { color:var(--text2); font-size:12px; }
+.presets { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.pb {
+  background:rgba(196,104,50,.06); border:1px solid rgba(196,104,50,.2);
+  border-radius:4px; color:var(--text2); font-family:var(--ar); font-size:11px;
+  padding:4px 8px; cursor:pointer; transition:all .15s;
+}
+.pb:hover { background:rgba(196,104,50,.16); color:var(--copper); border-color:var(--copper); }
+#ebtn {
+  width:100%;
+  background:linear-gradient(135deg,rgba(196,104,50,.14),rgba(196,104,50,.06));
+  border:1px solid var(--copper); border-radius:5px; color:var(--copper);
+  font-family:var(--ar); font-size:13px; font-weight:700; padding:9px;
+  cursor:pointer; letter-spacing:2px; transition:all .2s;
+}
+#ebtn:hover { background:rgba(196,104,50,.22); box-shadow:0 0 18px rgba(196,104,50,.25); }
+#ebtn:disabled { opacity:.4; cursor:not-allowed; }
+.ic { background:rgba(196,104,50,.05); border:1px solid rgba(196,104,50,.14); border-radius:4px; padding:7px 10px; margin-top:5px; font-family:var(--en); font-size:10px; direction:ltr; }
+.io { color:#D4A060; font-weight:700; font-size:11px; }
+.ia { color:var(--green); }
+.iw { color:var(--text2); font-size:9px; }
 
-  // ── Ocean & Octagon ─────────────────────────────────────────
-  const oceanGeo = new THREE.PlaneGeometry(2000, 2000, 64, 64);
-  const oceanMat = new THREE.MeshStandardMaterial({ color: 0x003355, roughness: 0.1, metalness: 0.6, transparent: true, opacity: 0.85 });
-  const ocean = new THREE.Mesh(oceanGeo, oceanMat);
-  ocean.rotation.x = -Math.PI / 2;
-  ocean.position.y = -2;
-  scene.add(ocean);
+/* Legend */
+.legend { display:grid; grid-template-columns:1fr 1fr; gap:5px; font-size:10px; font-family:var(--en); }
+.li { display:flex; align-items:center; gap:5px; color:var(--text2); }
+.ld2 { width:7px; height:7px; border-radius:2px; }
 
-  const oceanVerts = oceanGeo.attributes.position;
-  const oceanBase  = new Float32Array(oceanVerts.array);
+/* ── Log panel LEFT ── */
+#pl { position:fixed; top:62px; left:14px; width:285px; z-index:50; display:flex; flex-direction:column; gap:10px; max-height:calc(100vh-90px); }
+#log { max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; }
+#log::-webkit-scrollbar { width:2px; }
+#log::-webkit-scrollbar-thumb { background:var(--copper); border-radius:2px; }
+.le { background:rgba(196,104,50,.04); border:1px solid rgba(196,104,50,.1); border-radius:4px; padding:7px 9px; font-family:var(--en); font-size:10px; line-height:1.7; animation:sli .3s; direction:ltr; }
+@keyframes sli { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+.le.ok  { border-color:rgba(196,104,50,.25); }
+.le.er  { border-color:rgba(239,68,68,.25); }
+.le.em  { border-color:rgba(239,68,68,.4); }
+.lt  { color:var(--text2); font-size:9px; }
+.lop { color:#D4A060; font-weight:700; }
+.lad { color:var(--green); }
+.lms { color:var(--copper); }
 
-  function buildOctagon() {
-    const R = 180, sides = 8;
-    const shape = new THREE.Shape();
-    for (let i = 0; i < sides; i++) {
-      const angle = (i / sides) * Math.PI * 2 - Math.PI / 8;
-      const x = Math.cos(angle) * R, y = Math.sin(angle) * R;
-      i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y);
-    }
-    shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: false });
-    const mat = new THREE.MeshStandardMaterial({ color: 0x0d1f30, roughness: 0.9, metalness: 0.1 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = -1;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-  }
-  buildOctagon();
+/* ── Laws panel ── */
+#laws-panel { position:fixed; bottom:42px; right:14px; width:305px; z-index:50; max-height:200px; overflow:hidden; }
+#laws-list { display:flex; flex-direction:column; gap:4px; max-height:170px; overflow-y:auto; }
+#laws-list::-webkit-scrollbar { width:2px; }
+#laws-list::-webkit-scrollbar-thumb { background:var(--copper); border-radius:2px; }
+.law-entry { font-size:10px; color:var(--copper); font-family:var(--en); display:flex; align-items:center; gap:6px; animation:sli .3s; }
+.law-entry::before { content:'✦'; font-size:8px; }
 
-  // ── Zone pads & Buildings ────────────────────────────────────
-  const zonePads = {};
-  Object.entries(ZONES).forEach(([id, z]) => {
-    const geo = new THREE.CylinderGeometry(12, 12, 0.5, 32);
-    const mat = new THREE.MeshStandardMaterial({ color: z.color, transparent: true, opacity: 0.5 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(z.x, 1, z.z);
-    scene.add(mesh);
-    zonePads[id] = mesh;
+/* ── HUD ── */
+#hud { position:fixed; bottom:42px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--copper); border-radius:5px; padding:5px 14px; font-family:var(--ar); font-size:11px; color:var(--copper); z-index:50; opacity:0; transition:opacity .4s; white-space:nowrap; }
+#hud.on { opacity:1; }
+
+/* ── Bottom bar ── */
+#bbar { position:fixed; bottom:0; left:0; right:0; height:30px; background:rgba(6,10,15,.96); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 16px; gap:20px; font-family:var(--en); font-size:10px; color:var(--text2); z-index:50; }
+.bi { display:flex; gap:5px; }
+.bi span:first-child { color:var(--copper); }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="ld">
+  <!-- Animated SARF logo -->
+  <svg class="sarf-logo-anim" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Arch shape (ص) -->
+    <path d="M20 65 L20 35 Q20 15 45 15 Q70 15 70 35 L70 65" stroke="#C46832" stroke-width="8" stroke-linecap="round" fill="none" style="animation-delay:.1s"/>
+    <!-- Horizontal bar -->
+    <line x1="5" y1="58" x2="95" y2="58" stroke="#C46832" stroke-width="3" stroke-linecap="round" style="animation-delay:.5s"/>
+    <!-- Needle pointing right -->
+    <line x1="70" y1="42" x2="110" y2="42" stroke="#C46832" stroke-width="2.5" stroke-linecap="round" style="animation-delay:.7s"/>
+    <!-- Dot -->
+    <circle cx="105" cy="36" r="4" fill="#C46832" style="animation-delay:.9s;stroke-dasharray:30;stroke-dashoffset:30;animation:draw 2s .9s ease forwards"/>
+  </svg>
+  <div class="ld-name">SARF</div>
+  <div class="ld-sub">PORT DIGITAL TWIN — SarfOS v2.0</div>
+  <div class="ld-bar"></div>
+</div>
+
+<!-- Canvas -->
+<div id="cv" style="position:absolute;inset:0;z-index:0"></div>
+
+<!-- Header -->
+<div id="hdr">
+  <div class="hdr-brand">
+    <svg class="logo-mark" viewBox="0 0 56 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 30 L8 16 Q8 5 20 5 Q32 5 32 16 L32 30" stroke="#C46832" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <line x1="1" y1="26" x2="46" y2="26" stroke="#C46832" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="32" y1="19" x2="52" y2="19" stroke="#C46832" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="50" cy="15" r="2.5" fill="#C46832"/>
+    </svg>
+    <div>
+      <div class="brand-name">SARF</div>
+      <div class="brand-sub">PORT DIGITAL TWIN — SarfOS v2.0</div>
+    </div>
+  </div>
+  <div class="hdr-stats">
+    <div class="stat"><div class="sv" id="sc">0</div><div class="sl">COMMANDS</div></div>
+    <div class="stat"><div class="sv" id="sm">—</div><div class="sl">PARSE ms</div></div>
+    <div class="stat"><div class="sv">4</div><div class="sl">VEHICLES</div></div>
+    <div class="stat"><div class="sv">3</div><div class="sl">DRONES</div></div>
+    <div class="stat"><div class="sv" style="color:var(--copper)">●</div><div class="sl">ONLINE</div></div>
+  </div>
+</div>
+
+<!-- Command Panel RIGHT -->
+<div id="pr">
+  <div class="card">
+    <div class="ptitle">◈ COMMAND CENTER — مركز الأوامر</div>
+    <textarea id="cmd" placeholder="أدخل الأمر الصرفي...&#10;مثال: أَرْسِ السفينةَ في رصيف 1 وافحصْ الحاويات"></textarea>
+    <div class="presets">
+      <button class="pb" onclick="s('أَرْسِ السفينةَ في رصيف 1 وافحصْ الحاويات')">⚓ إرساء</button>
+      <button class="pb" onclick="s('أمّنْ الرصيف 2 تأميناً كاملاً')">🛡 تأمين ULTRA</button>
+      <button class="pb" onclick="s('أقلعْ درونٌ وتفقّدِ المستودع')">🚁 درون</button>
+      <button class="pb" onclick="s('اشحنْ البطارية في محطة شحن A إذا انخفضت')">⚡ شحن</button>
+      <button class="pb" onclick="s('لن يدخلَ المجهولُ إلى النظام')">🔐 حظر دائم</button>
+      <button class="pb" onclick="s('انقطعَ التيارُ عن رصيف 1 فوراً')">🚨 طوارئ</button>
+      <button class="pb" onclick="s('أرسلْ تقريراً مِن ميناء_جدة إلى المركز بـ بيانات_الحالة')">📡 شبكة</button>
+      <button class="pb" onclick="s('جهّزْ رصيف 2 و اشحنْ ثم افحصْ الجمارك')">🔄 pipeline</button>
+    </div>
+    <button id="ebtn" onclick="run()">⚡ تنفيذ — EXECUTE</button>
+    <div id="iout"></div>
+  </div>
+  <div class="card">
+    <div class="ptitle">◈ PORT ZONES — مناطق الميناء</div>
+    <div class="legend">
+      <div class="li"><div class="ld2" style="background:#C46832"></div>أرصفة</div>
+      <div class="li"><div class="ld2" style="background:#ff8c00"></div>حاويات</div>
+      <div class="li"><div class="ld2" style="background:#00C853"></div>محطات شحن</div>
+      <div class="li"><div class="ld2" style="background:#8B6914"></div>لوجستية</div>
+      <div class="li"><div class="ld2" style="background:#1E3A5F"></div>درونز</div>
+      <div class="li"><div class="ld2" style="background:#C46832"></div>مركز التحكم</div>
+    </div>
+  </div>
+</div>
+
+<!-- Log Panel LEFT -->
+<div id="pl">
+  <div class="card">
+    <div class="ptitle">◈ EXECUTION LOG — سجل التنفيذ</div>
+    <div id="log">
+      <div class="le" style="direction:rtl;color:var(--text2);font-family:var(--ar);font-size:11px">
+        SarfOS جاهز — في انتظار الأوامر الصرفية...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Laws Panel -->
+<div id="laws-panel">
+  <div class="card" style="padding:10px 14px">
+    <div class="ptitle" style="margin-bottom:8px">◈ LAWS TRIGGERED — قوانين مُفعَّلة</div>
+    <div id="laws-list">
+      <div class="law-entry" style="color:var(--text2)">القوانين تظهر عند التنفيذ...</div>
+    </div>
+  </div>
+</div>
+
+<div id="hud"></div>
+
+<div id="bbar">
+  <div class="bi"><span>ENGINE</span><span>SarfOS v2.0</span></div>
+  <div class="bi"><span>RENDERER</span><span>Three.js r128</span></div>
+  <div class="bi"><span>BACKEND</span><span>Flask</span></div>
+  <div class="bi"><span>ZONE</span><span id="b-zone">—</span></div>
+  <div class="bi"><span>FPS</span><span id="b-fps">—</span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+<script>
+/* ── SarfOS parser (client-side fallback) ───────────────── */
+const VERB_MAP=[
+  [/أَرْسِ|أرسِ|أوقف/,'DOCK'],[/أرسلْ|بثّ/,'SEND'],[/انطلقْ|توجّهْ/,'MOVE'],
+  [/أمّنْ|احرسْ/,'SECURE'],[/افحصْ|امسحْ|تفقّدِ/,'SCAN'],[/جهّزْ|هيّئْ/,'PREPARE'],
+  [/اشحنْ/,'CHARGE'],[/سلّمْ|فرّغْ/,'DELIVER'],[/رسا|اكتملَ/,'COMPLETE'],
+  [/انقطعَ|انكسرَ/,'EMERGENCY'],[/أقلعْ/,'LAUNCH'],
+];
+const ZONE_MAP=[
+  [/رصيف\s*1|المرسى الأول/,'BERTH_1'],[/رصيف\s*2/,'BERTH_2'],
+  [/الحاوي/,'CONTAINERS'],[/الجمارك/,'CUSTOMS'],[/اللوجستي/,'LOGISTICS'],
+  [/المستودع/,'WAREHOUSE'],[/شحن\s*A/,'CHARGE_A'],[/شحن\s*B/,'CHARGE_B'],
+  [/المركز/,'CONTROL'],[/البوابة/,'GATE_N'],[/درون|طائرة/,'DRONE_HUB'],
+];
+const ZONES_CLIENT={
+  BERTH_1:{name:'رصيف 1'},BERTH_2:{name:'رصيف 2'},CONTAINERS:{name:'منطقة الحاويات'},
+  CUSTOMS:{name:'الجمارك'},LOGISTICS:{name:'اللوجستية'},WAREHOUSE:{name:'المستودع'},
+  CHARGE_A:{name:'محطة شحن A'},CHARGE_B:{name:'محطة شحن B'},
+  CONTROL:{name:'مركز التحكم'},GATE_N:{name:'البوابة الشمالية'},DRONE_HUB:{name:'محطة الدرونز'},
+};
+
+function parseClient(sentence){
+  const t0=performance.now();
+  const vehicle=/درون|طائرة/.test(sentence)?'DRONE':'VEHICLE';
+  const clauses=sentence.split(/\s+و\s+|\s+ثم\s+|\s+فـ\s+/);
+  const instructions=[];
+  clauses.forEach(cl=>{
+    cl=cl.trim(); if(!cl)return;
+    let opcode=null; for(const[p,o]of VERB_MAP){if(p.test(cl)){opcode=o;break;}}
+    if(!opcode)return;
+    let zone=null; for(const[p,z]of ZONE_MAP){if(p.test(cl)){zone=z;break;}}
+    const cond=/إذا انخفضت/.test(cl)?'IF_BAT_LOW':null;
+    const laws=[];
+    if(/لن/.test(cl)) laws.push('نفي: لن = PERMANENT_BLOCK');
+    if(/لا\s+ت/.test(cl)) laws.push('نفي: لا = RUNTIME_BLOCK');
+    if(/إذا|فور|عند/.test(cl)) laws.push('ن-8: ظرف = EVENT_TRIGGER');
+    if(/تأميناً.*كاملاً|فحصاً.*شاملاً/.test(cl)) laws.push('M+: ULTRA intensity');
+    else if(/تأميناً|فحصاً/.test(cl)) laws.push('M: HIGH intensity');
+    if(opcode==='EMERGENCY') laws.push('E: اِنْفَعَلَ = طوارئ ذاتية');
+    instructions.push({opcode,zone,zone_info:zone?ZONES_CLIENT[zone]:null,vehicle,condition:cond,laws,raw_clause:cl,
+      wazn:/^(أ|است)/.test(cl.split()[0])?'أَفْعَلَ':
+            /^(فعّ|أمّ|جهّ)/.test(cl.split()[0])?'فَعَّلَ':
+            /^(تفاع|تزام)/.test(cl.split()[0])?'تَفَاعَلَ':
+            /^(انق|انك)/.test(cl.split()[0])?'اِنْفَعَلَ':'فَعَلَ'});
   });
+  return{sentence,instructions,parse_time_ms:(performance.now()-t0).toFixed(3),pipeline_len:instructions.length};
+}
 
-  function addBuilding(x, z, w, h, d, color) {
-    const geo = new THREE.BoxGeometry(w, h, d);
-    const mat = new THREE.MeshStandardMaterial({ color });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, h / 2 + 1.5, z);
-    scene.add(mesh);
+/* ── UI ─────────────────────────────────────────────────── */
+function s(t){document.getElementById('cmd').value=t;}
+
+async function run(){
+  const sentence=document.getElementById('cmd').value.trim();
+  if(!sentence)return;
+  const btn=document.getElementById('ebtn');
+  btn.disabled=true; btn.textContent='⟳ جاري التحليل...';
+
+  // Client parse first (instant)
+  const local=parseClient(sentence);
+  renderInst(local);
+  addLog(local);
+  renderLaws(local.instructions.flatMap(i=>i.laws||[]));
+  if(window.sarfPort&&local.instructions.length)
+    window.sarfPort.execInstructions(local.instructions);
+  document.getElementById('sc').textContent=parseInt(document.getElementById('sc').textContent||0)+1;
+  document.getElementById('sm').textContent=local.parse_time_ms;
+
+  // Backend parse (for accurate wazn + syscall)
+  try{
+    const res=await fetch('/api/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sentence})});
+    if(res.ok){const d=await res.json();document.getElementById('sm').textContent=d.parse_ms;}
+  }catch(_){}
+
+  btn.disabled=false; btn.textContent='⚡ تنفيذ — EXECUTE';
+}
+
+function renderInst(data){
+  const el=document.getElementById('iout');
+  if(!data.instructions||!data.instructions.length){
+    el.innerHTML='<div style="color:var(--red);font-size:11px;margin-top:7px;font-family:var(--en)">⚠ لم يُتعرَّف على أمر</div>';
+    return;
   }
-  // Simplified building calls for size
-  addBuilding(110, -80, 24, 12, 18, 0x1a4a7a); 
-  addBuilding(-60, -60, 28, 18, 20, 0x4a1a00);
-  addBuilding(-120, 20, 20, 14, 20, 0x004a22);
+  el.innerHTML=data.instructions.map((i,n)=>`
+    <div class="ic">
+      <div style="display:flex;justify-content:space-between">
+        <span class="io">T${n+1}: ${i.opcode}</span>
+        <span class="ia">${i.zone||'—'}</span>
+      </div>
+      <div class="iw">${i.wazn||'فَعَلَ'}</div>
+      ${i.zone_info?`<div style="color:var(--text);font-size:9px;margin-top:2px">↳ ${i.zone_info.name}</div>`:''}
+    </div>`).join('');
+}
 
-  // ── Vehicles & Drones ────────────────────────────────────────
-  class Vehicle {
-    constructor(id, startZone, color) {
-      this.id = id; this.moving = false; this.target = null;
-      this.mesh = new THREE.Mesh(new THREE.BoxGeometry(7, 3.5, 12), new THREE.MeshStandardMaterial({ color }));
-      const z = ZONES[startZone];
-      this.mesh.position.set(z.x, 4, z.z);
-      scene.add(this.mesh);
-    }
-    moveTo(zoneId, cb) {
-      const z = ZONES[zoneId]; if(!z) return;
-      this.target = new THREE.Vector3(z.x, 4, z.z);
-      this.moving = true; this.onArrive = cb;
-    }
-    update(dt) {
-      if(!this.moving || !this.target) return;
-      const dir = this.target.clone().sub(this.mesh.position);
-      if(dir.length() < 2) { this.moving = false; if(this.onArrive) this.onArrive(); return; }
-      this.mesh.position.add(dir.normalize().multiplyScalar(80 * dt));
-      this.mesh.rotation.y = Math.atan2(dir.x, dir.z);
-    }
-  }
+function addLog(data){
+  const log=document.getElementById('log'),time=new Date().toTimeString().slice(0,8);
+  const rows=(data.instructions||[]).map(i=>`<div><span class="lop">${i.opcode}</span> → <span class="lad">${i.zone||'—'}</span></div>`).join('');
+  log.innerHTML=`<div class="le ok">
+    <div style="display:flex;justify-content:space-between"><span class="lt">${time}</span><span class="lms">${data.parse_time_ms}ms</span></div>
+    <div style="color:var(--text);font-size:9px;margin:3px 0;direction:rtl;font-family:var(--ar)">${data.sentence.slice(0,44)}${data.sentence.length>44?'…':''}</div>
+    ${rows}
+    <div style="color:var(--text2);font-size:9px">pipeline: ${data.pipeline_len} inst</div>
+  </div>`+log.innerHTML;
+}
 
-  const vehicles = [new Vehicle('V-1', 'PORT', 0x00c8ff)];
-  const drones = []; // Drones could be added similarly
+function renderLaws(laws){
+  if(!laws||!laws.length)return;
+  const ll=document.getElementById('laws-list');
+  laws.forEach(law=>{
+    if(!law)return;
+    const d=document.createElement('div');
+    d.className='law-entry'; d.textContent=law;
+    ll.insertBefore(d,ll.firstChild);
+    if(ll.children.length>8) ll.removeChild(ll.lastChild);
+  });
+}
 
-  // ── ISA Execution Bridge ─────────────────────────────────────
-  function executeInstructions(instructions) {
-    if (!instructions) return;
-    instructions.forEach((inst, idx) => {
-      setTimeout(() => {
-        const actor = vehicles[0]; // Simplified for first vehicle
-        if (inst.opcode === 'MOVE' || inst.opcode === 'SCAN') {
-          actor.moveTo(inst.operand, () => {
-             if(window.showHUD) window.showHUD(`✅ نفذت: ${inst.opcode} في ${inst.operand}`);
-          });
-        }
-      }, idx * 1000);
-    });
-  }
+window.showHUD=function(msg,ms=3000){
+  const h=document.getElementById('hud');
+  h.textContent=msg; h.classList.add('on');
+  clearTimeout(h._t); h._t=setTimeout(()=>h.classList.remove('on'),ms);
+};
+window.setZone=function(n){document.getElementById('b-zone').textContent=n;};
 
-  // ── Render Loop ──────────────────────────────────────────────
-  let lastTime = performance.now();
-  function animate() {
-    requestAnimationFrame(animate);
-    const now = performance.now();
-    const dt = (now - lastTime) / 1000; lastTime = now;
-    
-    vehicles.forEach(v => v.update(dt));
-    
-    // Water animation
-    const t = now * 0.001;
-    for (let i = 0; i < oceanVerts.count; i++) {
-      const ox = oceanBase[i * 3], oz = oceanBase[i * 3 + 2];
-      oceanVerts.array[i * 3 + 1] = Math.sin(ox * 0.02 + t) * 1.2;
-    }
-    oceanVerts.needsUpdate = true;
+/* Hide loading */
+window.addEventListener('sarf-ready',()=>{
+  const ld=document.getElementById('ld');
+  ld.classList.add('hide'); setTimeout(()=>ld.remove(),950);
+});
 
-    renderer.render(scene, camera);
-  }
-  animate();
-
-  // ── Expose API ───────────────────────────────────────────────
-  window.oxagon = { 
-    exec: executeInstructions, 
-    vehicles, 
-    scene 
-  };
-
-  // ⚠️ CRITICAL: Signal that the engine is ready to hide loading screen
-  setTimeout(() => {
-    window.dispatchEvent(new Event('oxagon-ready'));
-  }, 1000);
-
-})();
+/* Enter to execute */
+document.getElementById('cmd').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();run();}});
+</script>
+</body>
+</html>
