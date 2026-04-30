@@ -1,4 +1,3 @@
-cat > /home/claude/sarf_port/app.py << 'PYEOF'
 """
 SARF Port — SarfOS Digital Twin Backend
 نظام التشغيل الصرفي لإدارة الميناء الذاتي
