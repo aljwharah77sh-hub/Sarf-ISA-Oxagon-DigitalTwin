@@ -1,3 +1,5 @@
+cat > /home/claude/sarf_port/requirements.txt << 'EOF'
 flask==3.0.3
-flask-cors==4.0.1
 gunicorn==22.0.0
+EOF
+echo "✓ requirements.txt"
